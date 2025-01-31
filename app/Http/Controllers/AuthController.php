@@ -10,6 +10,33 @@ use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
+
+    /**
+     * @OA\Post(
+     *     path="/api/v1/register",
+     *     summary="Registrar un nuevo usuario",
+     *     tags={"Autenticación"},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"name", "email", "password"},
+     *             @OA\Property(property="name", type="string", example="Juan Pérez"),
+     *             @OA\Property(property="email", type="string", example="juan@example.com"),
+     *             @OA\Property(property="password", type="string", example="123456")
+     *         ),
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="Usuario registrado con éxito"
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Error de validación"
+     *     )
+     * )
+     */
+
+    // Registrar nuevo usuario
     public function register(Request $request)
     {
         $validated = Validator::make($request->all(), [
@@ -34,6 +61,38 @@ class AuthController extends Controller
         return response()->json(['message' => 'Usuario registrado con éxito'], 201);
     }
 
+    /**
+     * @OA\Post(
+     *     path="/api/v1/login",
+     *     summary="Iniciar sesión",
+     *     tags={"Autenticación"},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"email", "password"},
+     *             @OA\Property(property="email", type="string", example="juan@example.com"),
+     *             @OA\Property(property="password", type="string", example="123456")
+     *         ),
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Inicio de sesión exitoso",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="user", type="string", example="juan@example.com"),
+     *             @OA\Property(property="token", type="string", example="eyJhbGciOiJIUzI1NiIs...")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Credenciales incorrectas"
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Error de validación"
+     *     )
+     * )
+     */
+    // Iniciar sesión
     public function login(Request $request)
     {
         $validated = Validator::make($request->all(), [
@@ -54,14 +113,41 @@ class AuthController extends Controller
             return response()->json(['message' => 'Credenciales incorrectas'], 401);
         }
 
-        $token = $user->createToken(Str::random(10))->plainTextToken;
+        $token = $user->createToken('auth_token')->plainTextToken;
 
-        return response()->json(['token' => $token], 200);
+        return response()->json([
+            "user" => $request->email,
+            'token' => $token], 200);
     }
 
+    /**
+ * @OA\Post(
+ *     path="/api/v1/logout",
+ *     summary="Cerrar sesión",
+ *     tags={"Autenticación"},
+ *     security={{"bearerAuth":{}}},
+ *     @OA\Response(
+ *         response=200,
+ *         description="Sesión cerrada con éxito",
+ *         @OA\JsonContent(
+ *             @OA\Property(property="message", type="string", example="Sesión cerrada")
+ *         )
+ *     ),
+ *     @OA\Response(
+ *         response=401,
+ *         description="No autorizado"
+ *     )
+ * )
+ */
     public function logout(Request $request)
     {
-        $request->user()->tokens()->delete();
+        $user = $request->user();
+        if ($user) {
+            $user->tokens()->delete();
         return response()->json(['message' => 'Sesión cerrada'], 200);
+        }
+
+        return response()->json(['message' => 'No autorizado'], 401);
+        
     }
 }
